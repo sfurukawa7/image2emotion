@@ -29,10 +29,7 @@ def argparser():
     parser.add_argument("--GPU_NUMBER", "-gn", type=str, help="input 0 or 1")
 
     # データ入力方法
-    parser.add_argument("--TRAIN_IMG_CSV", "-tri", type=str, help="input a name of data csv file")
-    parser.add_argument("--TRAIN_SAL_CSV", "-trs", type=str, help="input a name of saliency csv file")
-    parser.add_argument("--TEST_IMG_CSV", "-tei", type=str, help="input a name of test csv file")
-    parser.add_argument("--TEST_SAL_CSV", "-tes", type=str, help="input a name of test csv file")
+    parser.add_argument("--DATASET", "-d", type=str, help="input a name of data csv file")
 
     #Output Name
     parser.add_argument("--HEADER", "-he", type=str, help="input a header of result")
@@ -55,7 +52,9 @@ def argparser():
     return parser.parse_args()
 
 def path2img(img_path,size=(224,224)):
-    image = load_img(img_path,target_size=size)#keras preprocess's function
+    header = "../../dataset/Emotion6/"
+    path = header + img_path
+    image = load_img(path,target_size=size)#keras preprocess's function
     image = img_to_array(image)#image-->ndarray
     return image
 

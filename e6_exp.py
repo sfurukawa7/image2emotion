@@ -55,7 +55,7 @@ def main():
 
     #データをロード
     if(args.LOAD == 'load_Img'):
-        test_img_path, train_x, train_y, test_x, test_y = ef.load_Img(data_path=args.TRAIN_IMG_CSV)
+        test_img_path, train_x, train_y, test_x, test_y = ef.load_Img(data_path=args.DATASET)
         
         #Training
         if args.SAVE_WEIGHTS == True:
