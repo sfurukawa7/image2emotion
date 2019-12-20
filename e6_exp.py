@@ -15,46 +15,13 @@ import argparse
 import datetime
 import sys
 
-#original module
+#自作モジュール
 import exp_function as ef
 from Tool import analyzer_function as af
 from Tool import analyzer as alz
 
-#コマンドライン引数の設定
-def argparser():
-    parser = argparse.ArgumentParser()
-    #GPU setting
-    parser.add_argument("--GPU_USERATE", "-gu", type=float, help="input [0, 1]")
-    parser.add_argument("--GPU_NUMBER", "-gn", type=str, help="input 0 or 1")
-
-    #Data
-    parser.add_argument("--TRAIN_IMG_CSV", "-tri", type=str, help="input a name of data csv file")
-    parser.add_argument("--TRAIN_SAL_CSV", "-trs", type=str, help="input a name of saliency csv file")
-    parser.add_argument("--TEST_IMG_CSV", "-tei", type=str, help="input a name of test csv file")
-    parser.add_argument("--TEST_SAL_CSV", "-tes", type=str, help="input a name of test csv file")
-
-    #Output name
-    parser.add_argument("--HEADER", "-he", type=str, help="input a header of result")
-
-    #Training configuration
-    parser.add_argument("--MODEL", "-m", type=str, help="input a name of model")
-    parser.add_argument("--LOAD", "-l", type=str, help="input a name of load method")
-    parser.add_argument("--TEST", "-t", type=str, help="input a name of test method")
-
-    #Saving trained parameter
-    parser.add_argument("--SAVE_WEIGHTS", "-sw", type=bool, help="input True or FAlse")
-
-    #Making Grad-CAM images
-    parser.add_argument("--GRADCAM", "-g", type=bool, help="input True or False")
-
-    #Hyperparameter
-    parser.add_argument("--EPOCH", "-e", type=int, help="input Epoch")
-    parser.add_argument("--BATCH", "-b", type=int, help="input batch")
-    parser.add_argument("--VAL_RATE", "-vr", type=float, help="input validation rate")
-    return parser.parse_args()
-
 #コマンドライン引数のグローバル変数
-args = argparser()
+args = ef.argparser()
 
 #出力ファイル名設定
 history_name=args.HEADER+"_acc&loss_{0:%Y%m%d%H%M%S}.png".format(datetime.datetime.now())
