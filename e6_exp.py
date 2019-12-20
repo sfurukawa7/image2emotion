@@ -15,12 +15,12 @@ import argparse
 import datetime
 import sys
 
-#original module
+#自作モジュール
 import exp_function as ef
 from Tool import analyzer_function as af
 from Tool import analyzer as alz
 
-#コマンドライン引数のグローバル変数
+#コマンドライン入力用の変数
 args = ef.argparser()
 
 #出力ファイル名設定
