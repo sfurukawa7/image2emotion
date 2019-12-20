@@ -8,8 +8,7 @@ import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from keras.preprocessing.image import load_img, img_to_array
 
-from Tool import analyzer_function_copy as af
-from Tool import gradcam
+from Tool import analyzer_function as af
 
 #1回の結果で分析
 #入力は「推定ファイル名」と「正解ファイル名」
