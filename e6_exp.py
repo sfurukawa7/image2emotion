@@ -29,7 +29,7 @@ result_name=args.HEADER+"_result_{0:%Y%m%d%H%M%S}.csv".format(datetime.datetime.
 analysis_name=args.HEADER+"_analysis_{0:%Y%m%d%H%M%S}.csv".format(datetime.datetime.now())
 
 def main():
-    #GPU Configuration
+    #GPU設定
     config = tf.ConfigProto(
         gpu_options=tf.GPUOptions(
             per_process_gpu_memory_fraction=args.GPU_USERATE,# GPU using rate

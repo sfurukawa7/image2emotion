@@ -24,17 +24,17 @@ from Tool import gradcam as gradcam
 #コマンドライン引数の設定
 def argparser():
     parser = argparse.ArgumentParser()
-    #GPU setting
+    #GPU設定
     parser.add_argument("--GPU_USERATE", "-gu", type=float, help="input [0, 1]")
     parser.add_argument("--GPU_NUMBER", "-gn", type=str, help="input 0 or 1")
 
-    #Data
+    #データ入力方法
     parser.add_argument("--TRAIN_IMG_CSV", "-tri", type=str, help="input a name of data csv file")
     parser.add_argument("--TRAIN_SAL_CSV", "-trs", type=str, help="input a name of saliency csv file")
     parser.add_argument("--TEST_IMG_CSV", "-tei", type=str, help="input a name of test csv file")
     parser.add_argument("--TEST_SAL_CSV", "-tes", type=str, help="input a name of test csv file")
 
-    #Output name
+    #Output Name
     parser.add_argument("--HEADER", "-he", type=str, help="input a header of result")
 
     #Training configuration
