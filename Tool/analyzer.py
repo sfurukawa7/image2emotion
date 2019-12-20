@@ -51,6 +51,42 @@ def one_analisis(pre_csv,gt_csv,analysis_name):
 
     df_analisis.to_csv(analysis_name,index=False, header=False)
 
+# 1回の結果で分析
+#入力は「推定ファイル名」と「正解ファイル名」
+def basic_analisis(result_list, test_y, analysis_name):
+    analisis=[]
+    analisis.append(["image","Kullback-Leibler divergence","Chebyshev distance","Canberra metric","Classification"])
+
+    #画像の名前リスト
+    name_list=result_list[:,0]
+
+    #name_label部分を削除&型を指定
+    #推定
+    
+    result_list=np.delete(result_list,0,1)
+    result_list=result_list.astype(np.float64)
+    #正解
+    test_y=test_y.astype(np.float64)
+    
+    #各画像での指標を計算
+    for x,y,z in zip(result_list,test_y,name_list):
+        data=[z,af.KL(y,x),af.CD(y,x),af.CM(y,x),af.Class(y,x)]
+        analisis.append(data)
+
+    #list -> ndarray    
+    analisis_value=np.array(analisis)
+    
+    #各指標の平均を算出
+    #ここで要素の型を指定している
+    avg_KL=np.mean(analisis_value[1:,1].astype(np.float64))
+    avg_CD=np.mean(analisis_value[1:,2].astype(np.float64))
+    avg_CM=np.mean(analisis_value[1:,3].astype(np.float64))
+    avg_Class=np.sum(analisis_value[1:,4].astype(np.float64))/name_list.size*100
+    analisis.append(["Average",avg_KL, avg_CD, avg_CM, avg_Class])
+    df_analisis = pd.DataFrame(analisis)
+
+    df_analisis.to_csv(analysis_name,index=False, header=False)
+
 #5回の分析結果の平均を算出
 def five_analysis():
 
