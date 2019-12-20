@@ -10,25 +10,25 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+from sklearn.model_selection import train_test_split
 from tqdm import trange, tqdm
 import argparse
 import datetime
 import sys
 import cv2
 
-#original module
+# 自作モジュール
 from Tool import analyzer_function as af
 from Tool import analyzer as alz
-from Tool import gradcam as gradcam
 
-#コマンドライン引数の設定
+# コマンドライン引数の設定
 def argparser():
     parser = argparse.ArgumentParser()
-    #GPU設定
+    # GPU設定
     parser.add_argument("--GPU_USERATE", "-gu", type=float, help="input [0, 1]")
     parser.add_argument("--GPU_NUMBER", "-gn", type=str, help="input 0 or 1")
 
-    #データ入力方法
+    # データ入力方法
     parser.add_argument("--TRAIN_IMG_CSV", "-tri", type=str, help="input a name of data csv file")
     parser.add_argument("--TRAIN_SAL_CSV", "-trs", type=str, help="input a name of saliency csv file")
     parser.add_argument("--TEST_IMG_CSV", "-tei", type=str, help="input a name of test csv file")
@@ -54,26 +54,33 @@ def argparser():
     parser.add_argument("--VAL_RATE", "-vr", type=float, help="input validation rate")
     return parser.parse_args()
 
-def load_Img(data_path):
-    df_im=pd.read_csv(data_path,header=None)
-    df_im_array=df_im.values
+def path2img(img_path,size=(224,224)):
+    image = load_img(img_path,target_size=size)#keras preprocess's function
+    image = img_to_array(image)#image-->ndarray
+    return image
 
-    image_list=[]
-    label_list=[]
+def setup_dataset(dataset):
+    img_path_list = np.array(dataset[:,0])
+    label_list = np.array(dataset[:,1:8])
 
     print("Now loading Images and Labels...")
-    for x in tqdm(df_im_array):
-        label=x[1:]
-        label_list.append(label)
-        filepath = x[0]
-        image=load_img(filepath,target_size=(224,224))#keras preprocess's function
-        image=img_to_array(image)#image-->ndarray
-        image_list.append(image / 255.)
+    img_list = np.array([path2img(img_path) for img_path in tqdm(img_path_list)])/255.
+    img_path_list = img_path_list[:,np.newaxis]
 
-    # list to ndarray
-    image_list = np.array(image_list)
-    label_list = np.array(label_list)
-    return image_list, label_list
+    return img_path_list, img_list, label_list
+
+# def path2attnimg(img_path,size=(224,224)):
+
+def load_Img(data_path, test_split = 0.15):
+    df_im=pd.read_csv(data_path,header=None)
+    dataset=df_im.values
+
+    train, test = train_test_split(dataset, test_size=test_split)
+
+    train_img_path , train_x, train_y = setup_dataset(train)#train_img_pathは使わない
+    test_img_path, test_x, test_y = setup_dataset(test)
+
+    return test_img_path, train_x, train_y, test_x, test_y
 
 def load_AttnImg_Network(data_path, sal_path):
     #loading dataset
@@ -186,39 +193,17 @@ def save_histor(fit, history_name):
     fig.savefig(history_name)
     plt.close()
 
-def test_Img(model, model_name, img_csv, result_name, gcam, header):
-    df_im=pd.read_csv(img_csv,header=None)
-    df_im_array=df_im.values
+def test_1img(model, model_name, img_path_list, test_x, test_y, result_name, analysis_name):
+    # 推定
+    prediction_list=model.predict(test_x)
+    result_list=np.concatenate([img_path_list,prediction_list],1)
 
-    data_list=[]
-    image_testlist=[]
-
-    #make gradcam directory
-    if gcam == True:
-        gcam_dir="{header}/gradcam_{time:%Y%m%d%H%M%S}".format(header=header.rsplit('/',1)[0], time=datetime.datetime.now())
-        os.mkdir(gcam_dir)
-        hmap_dir="{header}/heatmap_{time:%Y%m%d%H%M%S}".format(header=header.rsplit('/',1)[0], time=datetime.datetime.now())
-        os.mkdir(hmap_dir)
-
-    for x in tqdm(df_im_array):
-        filepath = x[0]
-        #filepath & outputs --> lists
-        data_list.append(np.array([filepath]))
-        image=load_img(filepath,target_size=(224,224))#keras preprocess's function
-        image=img_to_array(image)#image-->ndarray
-        image_testlist.append(image/255.)
-        
-        if gcam == True:
-            gradcam.get_gradcam(filepath, model_name, model, gcam_dir)
-            gradcam.get_heatmap(filepath, model_name, model, hmap_dir)
-
-
-    image_testlist=np.array(image_testlist)
-    # prediction
-    result_list=model.predict(image_testlist)
-    result_list=np.concatenate([data_list,result_list],1)
+    # 推定結果出力
     df = pd.DataFrame(result_list)
     df.to_csv(result_name,index=False, header=False)
+
+    # 評価
+    alz.basic_analisis(result_list, test_y, analysis_name)
 
 def test_AttnImg_Network(model, model_name, img_csv, sal_csv, result_name, gcam, header):
     df_im=pd.read_csv(img_csv,header=None)
