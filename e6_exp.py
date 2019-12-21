@@ -1,5 +1,6 @@
 # coding:utf-8
 import tensorflow as tf
+import keras
 from keras.backend.tensorflow_backend import set_session
 from keras import models, optimizers
 from keras.optimizers import SGD
@@ -14,6 +15,7 @@ from tqdm import trange, tqdm
 import argparse
 import datetime
 import sys
+import matplotlib.pyplot as plt
 
 # 自作モジュール
 import exp_func as ef
@@ -27,15 +29,23 @@ result_name=args.HEADER+"_result_{0:%Y%m%d%H%M%S}.csv".format(datetime.datetime.
 analysis_name=args.HEADER+"_analysis_{0:%Y%m%d%H%M%S}.csv".format(datetime.datetime.now())
 
 def main():
-    #GPU設定
-    config = tf.ConfigProto(
-        gpu_options=tf.GPUOptions(
-            per_process_gpu_memory_fraction=args.GPU_USERATE,# GPU using rate
-            visible_device_list=args.GPU_NUMBER, # GPU number
-            allow_growth=True
-        )
-    )
-    set_session(tf.Session(config=config))
+    # GPU設定
+    ef.GPU_configuration(args.GPU_USERATE, args.GPU_NUMBER)
+
+    #Saving best trained parameter
+    mc_cb = ModelCheckpoint(filepath = '{header}_best_weights_{time:%Y%m%d%H%M%S}.hdf5'.format(header=args.HEADER, time=datetime.datetime.now()), monitor = 'val_loss', save_best_only=True, save_weights_only=True, mode='auto', period=1)
+
+    #データをロード
+    if(args.LOAD == 'load_Img'):
+        test_img_path, train_x, train_y, test_x, test_y = ef.load_Img(data_path=args.DATASET)
+
+    elif(args.LOAD == 'load_AttnImg_CASNet'):
+        test_img_path, train_x, train_y, test_x, test_y = ef.load_AttnImg_CASNet(data_path=args.DATASET)
+        
+        # メモリ開放
+        keras.backend.clear_session()
+        # 再度GPU設定
+        ef.GPU_configuration(args.GPU_USERATE, args.GPU_NUMBER)
 
     if(args.MODEL == 'vgg16'):
         from models import vgg16 as vgg16
@@ -43,41 +53,18 @@ def main():
     elif(args.MODEL == 'resnet50'):
         from models import resnet50 as res50
         model=res50.creat_ResNet50_model()
-        
+
     #オプティマイザ
     # adam=optimizers.Adam(lr=0.001)
     sgd=optimizers.SGD(lr=0.001,momentum=0.9, decay=0.0005)
     
     model.compile(loss="mean_squared_error", optimizer=sgd, metrics=["accuracy"])
-    
-    #Saving best trained parameter
-    mc_cb = ModelCheckpoint(filepath = '{header}_best_weights_{time:%Y%m%d%H%M%S}.hdf5'.format(header=args.HEADER, time=datetime.datetime.now()), monitor = 'val_loss', save_best_only=True, save_weights_only=True, mode='auto', period=1)
 
-    #データをロード
-    if(args.LOAD == 'load_Img'):
-        test_img_path, train_x, train_y, test_x, test_y = ef.load_Img(data_path=args.DATASET)
-        
-        #Training
-        if args.SAVE_WEIGHTS == True:
-            fit=model.fit(train_x, train_y, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE, callbacks = [mc_cb]) 
-        else:
-            fit=model.fit(train_x, train_y, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE)
-
-    elif(args.LOAD == 'load_AttnImg_Network'):
-        attn_image_list, label_list = ef.load_AttnImg_Network(args.TRAIN_IMG_CSV, args.TRAIN_SAL_CSV)
-        #Saving trained parameter
-        if args.SAVE_WEIGHTS == True:
-            fit=model.fit(attn_image_list, label_list, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE, callbacks = [mc_cb])
-        else:
-            fit=model.fit(attn_image_list, label_list, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE)
-
-    elif(args.LOAD == 'load_Img_AttnImg_Network'):
-        img_list, attn_img_list, label_list = ef.load_Img_AttnImg_Network(args.TRAIN_IMG_CSV, args.TRAIN_SAL_CSV)
-        #Training
-        if args.SAVE_WEIGHTS == True:
-            fit=model.fit([img_list, attn_img_list], label_list, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE, callbacks = [mc_cb])
-        else:
-            fit=model.fit([img_list, attn_img_list], label_list, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE)
+    #Training
+    if args.SAVE_WEIGHTS == True:
+        fit=model.fit(train_x, train_y, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE, callbacks = [mc_cb]) 
+    else:
+        fit=model.fit(train_x, train_y, nb_epoch=args.EPOCH, batch_size=args.BATCH, validation_split=args.VAL_RATE)
 
     #Saving history png file
     ef.save_histor(fit, history_name)
@@ -88,8 +75,6 @@ def main():
     #Testing
     if(args.TEST == 'test_1img'):
         ef.test_1img(model, args.MODEL, test_img_path, test_x, test_y, result_name, analysis_name)
-    elif(args.TEST == 'test_AttnImg_Network'):
-        ef.test_AttnImg_Network(model, args.MODEL, args.TEST_IMG_CSV, args.TEST_SAL_CSV, result_name, args.GRADCAM, args.HEADER)
     elif(args.TEST == 'test_Img_AttnImg_Network'):
         ef.test_Img_AtnnImg_Network(model, args.TEST_IMG_CSV, args.TEST_SAL_CSV, result_name)
 

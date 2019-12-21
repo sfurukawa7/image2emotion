@@ -20,6 +20,18 @@ import cv2
 # 自作モジュール
 from Tool import analyzer_function as af
 from Tool import analyzer as alz
+from Tool.casnet import get_saliency_map, create_CASNet
+
+def GPU_configuration(gpu_userate, gpu_number):
+    #GPU設定
+    config = tf.ConfigProto(
+        gpu_options=tf.GPUOptions(
+            per_process_gpu_memory_fraction=gpu_userate,# GPU using rate
+            visible_device_list=gpu_number, # GPU number
+            allow_growth=True
+        )
+    )
+    set_session(tf.Session(config=config))
 
 # コマンドライン引数の設定
 def argparser():
@@ -55,20 +67,51 @@ def path2img(img_path,size=(224,224)):
     header = "../../dataset/Emotion6/"
     path = header + img_path
     image = load_img(path,target_size=size)#keras preprocess's function
-    image = img_to_array(image)#image-->ndarray
+    image = img_to_array(image)/255.#image-->ndarray
     return image
+
+def normalize(sal):
+    min = sal.min()
+    max = sal.max()
+    result = (sal-min)/(max-min)
+    return result 
+
+def path2attnimg(img_path, model, size=(224,224)):
+    header = "../../dataset/Emotion6/"
+    path = header + img_path
+    image = load_img(path,target_size=size)#keras preprocess's function
+    image = img_to_array(image)#image-->ndarray
+
+    sal = get_saliency_map(path, model)
+    sal = (normalize(sal) * 100).astype(int)
+    sal = np.expand_dims(sal, axis=2)
+    attnimg = image * sal /100. /255.
+
+    return attnimg
 
 def setup_dataset(dataset):
     img_path_list = np.array(dataset[:,0])
     label_list = np.array(dataset[:,1:8])
 
     print("Now loading Images and Labels...")
-    img_list = np.array([path2img(img_path) for img_path in tqdm(img_path_list)])/255.
+    img_list = np.array([path2img(img_path) for img_path in tqdm(img_path_list)])
     img_path_list = img_path_list[:,np.newaxis]
 
     return img_path_list, img_list, label_list
 
-# def path2attnimg(img_path,size=(224,224)):
+def setup_dataset_CASNet(dataset):
+    #モデル生成
+    model = create_CASNet()
+    model.load_weights('Tool/salicon_generator_sigmoid_epoch_25.h5')
+
+    img_path_list = np.array(dataset[:,0])
+    label_list = np.array(dataset[:,1:8])
+
+    print("Now loading Images and Labels...")
+    img_list = np.array([path2attnimg(img_path, model) for img_path in tqdm(img_path_list)])
+    img_path_list = img_path_list[:,np.newaxis]
+
+    return img_path_list, img_list, label_list
 
 def load_Img(data_path, test_split = 0.15):
     df_im=pd.read_csv(data_path,header=None)
@@ -76,40 +119,21 @@ def load_Img(data_path, test_split = 0.15):
 
     train, test = train_test_split(dataset, test_size=test_split)
 
-    train_img_path , train_x, train_y = setup_dataset(train)#train_img_pathは使わない
+    train_img_path, train_x, train_y = setup_dataset(train)#train_img_pathは使わない
     test_img_path, test_x, test_y = setup_dataset(test)
 
     return test_img_path, train_x, train_y, test_x, test_y
 
-def load_AttnImg_Network(data_path, sal_path):
-    #loading dataset
+def load_AttnImg_CASNet(data_path, test_split = 0.15):
     df_im=pd.read_csv(data_path,header=None)
-    df_sal=pd.read_csv(sal_path,header=None)
-    df_im_array=df_im.values
-    df_sal_array=df_sal.values
+    dataset=df_im.values
 
-    ##Dataset Section
-    attn_image_list=[]
-    label_list=[]
+    train, test = train_test_split(dataset, test_size=test_split)
 
-    print("Making attention images...")
-    for x, y in zip(tqdm(df_im_array),tqdm(df_sal_array)):
-        label=x[1:]
-        label_list.append(label)
-        filepath_im = x[0]
-        filepath_sal = y[0]
+    train_img_path, train_x, train_y = setup_dataset_CASNet(train)#train_img_pathは使わない
+    test_img_path, test_x, test_y = setup_dataset_CASNet(test)
 
-        image=load_img(filepath_im,target_size=(224,224))#keras preprocess's function
-        sal=load_img(filepath_sal, grayscale=True,target_size=(224,224))#keras preprocess's function
-        image=img_to_array(image)#image-->ndarray
-        sal=img_to_array(sal)/255.
-        attn_img=image*sal
-        attn_image_list.append(attn_img/255.)
-
-    # list to ndarray
-    attn_image_list = np.array(attn_image_list)
-    label_list = np.array(label_list)
-    return attn_image_list, label_list
+    return test_img_path, train_x, train_y, test_x, test_y
 
 def load_AttinImg_openCV(data_path):
     df_im=pd.read_csv(data_path,header=None)
