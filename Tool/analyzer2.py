@@ -9,8 +9,8 @@ import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 from tqdm import trange, tqdm
 import os
-import matplotlib.pyplot as plt
 import datetime
+import shutil
 
 # from Tool import gradcam
 from Tool import analyzer_function as af
@@ -30,7 +30,7 @@ def argparser():
   parser.add_argument("--result_csv", "-rc", type=str, help="input csv file")
   parser.add_argument("--analysis_csv1", "-ac1", type=str, help="input csv file")
   parser.add_argument("--analysis_csv2", "-ac2", type=str, help="input csv file")
-  parser.add_argument("--img_type", "-it", type=str, help="correct or incorrect")
+  parser.add_argument("--img_list", "-il", type=str, help="input csv file")
   return parser.parse_args()
 
 def extra_test_img(model_name, weight, img_csv, result_name, analysis_name, gcam, header):
@@ -134,44 +134,6 @@ def make_analysis2(result_csv, analysis_csv1, heatmap_csv, output_csv):
   df_output = pd.DataFrame(new_ac_array)
   df_output.to_csv(output_csv, index=False, header=False)
 
-#シェルスクリプトと組み合わせて実行
-def extract_imgs(heatmap_csv, analysis2_csv, img_type):
-  assert img_type == 'correct' or img_type == 'incorrect', "-t : Input ONLY correct or incorrect"
-  # ヒートマップcsvファイルの読み込み
-  df_hc = pd.read_csv(heatmap_csv,header=None)
-  df_hc_array = df_hc.values
-
-  # 分析2csvファイルの読み込み
-  df_ac2 = pd.read_csv(analysis2_csv,header=None)
-  df_ac2_array = df_ac2.values
-  # スライス
-  df_ac2_array1 = df_ac2_array[1:-1,0]
-  df_ac2_array2 = df_ac2_array[1:-1,4]
-  # shape調整
-  df_ac2_array1 = df_ac2_array1[:, np.newaxis]
-  df_ac2_array2 = df_ac2_array2[:, np.newaxis]
-
-  # カラムを結合
-  data = np.concatenate([df_hc_array, df_ac2_array1, df_ac2_array2], axis=1)
-  
-  if img_type == 'correct':
-    hm_cor = [x[0] for x in data if x[2] == '1']
-    img_cor = [x[1] for x in data if x[2] == '1']
-    
-    hm_cor=' '.join(hm_cor)
-    print(hm_cor)
-    img_cor=' '.join(img_cor)
-    print(img_cor)  
-
-  elif img_type == 'incorrect':
-    hm_inc = [x[0] for x in data if x[2] == '0']
-    img_inc = [x[1] for x in data if x[2] == '0']
-
-    hm_inc=' '.join(hm_inc)
-    print(hm_inc)
-    img_inc=' '.join(img_inc)
-    print(img_inc)
-
 def compare_Img_AttnImg(origin_csv, attn_csv, header):
   assert os.path.exists(origin_csv) == True, "-ic : Input ONLY csv name"
   assert os.path.exists(attn_csv) == True, "-rc : Input ONLY csv name"
@@ -210,6 +172,32 @@ def compare_Img_AttnImg(origin_csv, attn_csv, header):
   df_output = pd.DataFrame(fail_index)
   df_output.to_csv(fail_name,index=False, header=False)
 
+# リストに書かれている目的に合った画像を複製する
+def copy_Img(img_list, header):
+  assert os.path.exists(img_list) == True, "-il : Input ONLY csv name"
+
+  # ファイルの読み込み
+  df_il = pd.read_csv(img_list,header=None)
+  images = df_il.values
+
+  # ベクトル化
+  images = images.flatten()
+
+  # 保存先ディレクトリの作成
+  os.mkdir(header)
+
+  load_header = "../../dataset/Emotion6/"
+  copy_header = header
+
+  for img_path in images:
+    path = load_header + img_path
+    
+    img_name = img_path.replace('/','_').split('.')[0]
+    img_name = copy_header + '/' + img_name + '.jpg'
+    print(img_name)
+    shutil.copy(path, img_name)
+
+
 def main():
   args = argparser()
 
@@ -223,7 +211,7 @@ def main():
   # )
   # set_session(tf.Session(config=config))
     
-  print("extra_test_Attnimg(-1), extra_test(0), make analysis2(1), extract correct imgs and incorrect imgs(2), compare origin and ours(3):")
+  print("extra_test_Attnimg(-1), extra_test(0), make analysis2(1), compare origin and ours(2), copy_images(3):")
   choice = input()
 
   if choice == '-1':
@@ -235,7 +223,7 @@ def main():
   elif choice == '2':
     extract_imgs(args.heatmap_csv, args.output_csv, args.img_type)
   elif choice == '3':
-    compare_Img_AttnImg(args.analysis_csv1, args.analysis_csv2, args.header)
+    copy_Img(args.img_list, args.header)
 
 
 if __name__=='__main__':
