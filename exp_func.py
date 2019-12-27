@@ -117,23 +117,31 @@ def load_Img(data_path, test_split = 0.15):
     df_im=pd.read_csv(data_path,header=None)
     dataset=df_im.values
 
-    train, test = train_test_split(dataset, test_size=test_split)
+    if test_split == 1.0:
+        img_path, data_x, data_y = setup_dataset(dataset)#train_img_pathは使わない
+        return img_path, data_x, data_y
+    else:
+        train, test = train_test_split(dataset, test_size=test_split)
 
-    train_img_path, train_x, train_y = setup_dataset(train)#train_img_pathは使わない
-    test_img_path, test_x, test_y = setup_dataset(test)
+        train_img_path, train_x, train_y = setup_dataset(train)#train_img_pathは使わない
+        test_img_path, test_x, test_y = setup_dataset(test)
 
-    return test_img_path, train_x, train_y, test_x, test_y
+        return test_img_path, train_x, train_y, test_x, test_y
 
 def load_AttnImg_CASNet(data_path, test_split = 0.15):
     df_im=pd.read_csv(data_path,header=None)
     dataset=df_im.values
 
-    train, test = train_test_split(dataset, test_size=test_split)
+    if test_split == 1.0:
+        img_path, data_x, data_y = setup_dataset_CASNet(dataset)#train_img_pathは使わない
+        return img_path, data_x, data_y
+    else:
+        train, test = train_test_split(dataset, test_size=test_split)
 
-    train_img_path, train_x, train_y = setup_dataset_CASNet(train)#train_img_pathは使わない
-    test_img_path, test_x, test_y = setup_dataset_CASNet(test)
+        train_img_path, train_x, train_y = setup_dataset_CASNet(train)#train_img_pathは使わない
+        test_img_path, test_x, test_y = setup_dataset_CASNet(test)
 
-    return test_img_path, train_x, train_y, test_x, test_y
+        return test_img_path, train_x, train_y, test_x, test_y
 
 def load_AttinImg_openCV(data_path):
     df_im=pd.read_csv(data_path,header=None)
