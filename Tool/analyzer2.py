@@ -12,35 +12,28 @@ import os
 import matplotlib.pyplot as plt
 import datetime
 
-from Tool import gradcam
+# from Tool import gradcam
 from Tool import analyzer_function as af
 from Tool import analyzer as alz
+from exp_func import load_Img, load_AttnImg_CASNet
 
 #コマンドライン引数の設定
 def argparser():
   parser = argparse.ArgumentParser()
-  #GPU setting
-  parser.add_argument("--GPU_USERATE", "-gu", type=float, help="input [0, 1]")
-  parser.add_argument("--GPU_NUMBER", "-gn", type=str, help="input 0 or 1")
 
+  #GPU setting
   parser.add_argument("--model_name", "-mn", type=str, help="input model name")
   parser.add_argument("--weight", "-w", type=str, help="input weight name")
   parser.add_argument("--img_csv", "-ic", type=str, help="input csv file")
-  parser.add_argument("--sal_csv", "-sc", type=str, help="input csv file")
-  parser.add_argument("--gradcam", "-g", type=bool, help="True or False")
+  parser.add_argument("--gradcam", "-g", type=str, help="True or False")
   parser.add_argument("--header", "-he", type=str, help="input header name")
   parser.add_argument("--result_csv", "-rc", type=str, help="input csv file")
-  parser.add_argument("--analysis_csv", "-ac", type=str, help="input csv file")
-  parser.add_argument("--heatmap_csv", "-hc", type=str, help="input csv file")
-  parser.add_argument("--output_csv", "-oc", type=str, help="input csv name")
-  parser.add_argument("--output_graph", "-og", type=str, help="input png name")
+  parser.add_argument("--analysis_csv1", "-ac1", type=str, help="input csv file")
+  parser.add_argument("--analysis_csv2", "-ac2", type=str, help="input csv file")
   parser.add_argument("--img_type", "-it", type=str, help="correct or incorrect")
   return parser.parse_args()
 
 def extra_test_img(model_name, weight, img_csv, result_name, analysis_name, gcam, header):
-  df_im=pd.read_csv(img_csv,header=None)
-  df_im_array=df_im.values
-
   #model作成
   if(model_name == 'vgg16'):
     from models import vgg16 as vgg16
@@ -55,39 +48,24 @@ def extra_test_img(model_name, weight, img_csv, result_name, analysis_name, gcam
   model.load_weights(weight)
 
   #make gradcam directory
-  if gcam == True:
+  if gcam == "True":
     gcam_dir="{header}/gradcam_{time:%Y%m%d%H%M%S}".format(header=header.rsplit('/',1)[0], time=datetime.datetime.now())
     os.mkdir(gcam_dir)
     hmap_dir="{header}/heatmap_{time:%Y%m%d%H%M%S}".format(header=header.rsplit('/',1)[0], time=datetime.datetime.now())
     os.mkdir(hmap_dir)
 
-  data_list=[]
-  image_testlist=[]
-  for x in tqdm(df_im_array):
-      filepath = x[0]
-      #filepath & outputs --> lists
-      data_list.append(np.array([filepath]))
-      image=load_img(filepath,target_size=(224,224))#keras preprocess's function
-      image=img_to_array(image)#image-->ndarray
-      image_testlist.append(image/255.)
+  img_path, data_x, data_y = load_Img(data_path=img_csv, test_split=1.0)
 
-      if gcam == True:
-          gradcam.get_gradcam(filepath, model_name, model, gcam_dir)
-          gradcam.get_heatmap(filepath, model_name, model, hmap_dir)
-
-  image_testlist=np.array(image_testlist)
   #prediction
-  result_list=model.predict(image_testlist)
-  result_list=np.concatenate([data_list,result_list],1)
+  result_list=model.predict(data_x)
+  result_list=np.concatenate([img_path,result_list],1)
   df = pd.DataFrame(result_list)
   df.to_csv(result_name,index=False, header=False)
 
   #Evaluation Section
   alz.one_analisis(result_name, img_csv, analysis_name)
 
-def extra_test_Attnimg_Network(model_name, weight, img_csv, sal_csv, result_name, gcam, header):
-  import exp_function as ef
-
+def extra_test_Attnimg_CASNet(model_name, weight, img_csv, result_name, analysis_name, gcam, header):
   #model作成
   if(model_name == 'vgg16'):
     from models import vgg16 as vgg16
@@ -101,9 +79,18 @@ def extra_test_Attnimg_Network(model_name, weight, img_csv, sal_csv, result_name
 
   model.load_weights(weight)
 
-  ef.test_AttnImg_Network(model, model_name, img_csv, sal_csv, result_name, gcam, header)
+  img_path, data_x, data_y = load_AttnImg_CASNet(data_path=img_csv, test_split=1.0)
 
-def make_analysis2(result_csv, analysis_csv, heatmap_csv, output_csv):
+  #prediction
+  result_list=model.predict(data_x)
+  result_list=np.concatenate([img_path,result_list],1)
+  df = pd.DataFrame(result_list)
+  df.to_csv(result_name,index=False, header=False)
+
+  #Evaluation Section
+  alz.one_analisis(result_name, img_csv, analysis_name)
+
+def make_analysis2(result_csv, analysis_csv1, heatmap_csv, output_csv):
   # 実験結果csvファイルの読み込み
   df_rc = pd.read_csv(result_csv,header=None)
   df_rc_array = df_rc.values
@@ -139,7 +126,7 @@ def make_analysis2(result_csv, analysis_csv, heatmap_csv, output_csv):
   hc_var = np.hstack([hc_header, hc_var, hc_footer])[:, np.newaxis]
 
   # 分析結果csvファイルの読み込み
-  df_ac = pd.read_csv(analysis_csv, header=None)
+  df_ac = pd.read_csv(analysis_csv1, header=None)
   df_ac_array = df_ac.values
   new_ac_array = np.concatenate([df_ac_array, rc_var, hc_var], axis=1)
 
@@ -185,26 +172,43 @@ def extract_imgs(heatmap_csv, analysis2_csv, img_type):
     img_inc=' '.join(img_inc)
     print(img_inc)
 
-def make_graph(analysis2_csv, output_graph):
-  assert os.path.exists(analysis2_csv) == True, "-oc : Input ONLY csv name"
-  # 分析2csvファイルの読み込み
-  df_ac2 = pd.read_csv(analysis2_csv,header=None)
-  df_ac2_array = df_ac2.values
+def compare_Img_AttnImg(origin_csv, attn_csv, header):
+  assert os.path.exists(origin_csv) == True, "-ic : Input ONLY csv name"
+  assert os.path.exists(attn_csv) == True, "-rc : Input ONLY csv name"
+
+  # origin_csvファイルの読み込み
+  df_oc = pd.read_csv(origin_csv,header=None)
+  origin = df_oc.values
   
-  # スライス
-  kl = df_ac2_array[1:, 1]
-  hm_var = df_ac2_array[1:, 6]
-  
-  #figureの作成
-  fig = plt.figure()
-  #axesを作成
-  ax = fig.add_subplot(1,1,1)
-  ax.scatter(kl, hm_var)
-  
-  ax.set_ylim(0.0, 2.0)
-  # plt.scatter(hm_var, kl)
-  fig.savefig(output_graph)
-  
+  # attn_csvファイルの読み込み
+  df_ac = pd.read_csv(attn_csv,header=None)
+  attn = df_ac.values
+
+  # インデックスの抽出
+  index = origin[1:, 0]
+
+  # それぞれのKLのみを抽出
+  origin = origin[1:, 1].astype(float)
+  attn = attn[1:, 1].astype(float)
+
+  # オリジナルと提案手法のKLの差
+  dif = origin-attn
+
+  # 提案手法の方が優れている画像のインデックス
+  success_index = index[dif > 0]
+  fail_index = index[dif < 0]
+
+  # 名前設定
+  success_name = header + "_success.csv"
+  fail_name = header + "_fail.csv"
+
+  # 成功した画像リストを出力
+  df_output = pd.DataFrame(success_index)
+  df_output.to_csv(success_name,index=False, header=False)
+
+  # 失敗した画像リストを出力
+  df_output = pd.DataFrame(fail_index)
+  df_output.to_csv(fail_name,index=False, header=False)
 
 def main():
   args = argparser()
@@ -219,19 +223,19 @@ def main():
   # )
   # set_session(tf.Session(config=config))
     
-  print("extra_test_Attnimg(-1), extra_test(0), make analysis2(1), extract correct imgs and incorrect imgs(2), make graph(3):")
+  print("extra_test_Attnimg(-1), extra_test(0), make analysis2(1), extract correct imgs and incorrect imgs(2), compare origin and ours(3):")
   choice = input()
 
   if choice == '-1':
-    extra_test_Attnimg_Network(args.model_name, args.weight, args.img_csv, args.sal_csv, args.result_csv, args.gradcam, args.header)
+    extra_test_Attnimg_CASNet(args.model_name, args.weight, args.img_csv, args.result_csv, args.analysis_csv1, args.gradcam, args.header)
   elif choice == '0':
-    extra_test_img(args.model_name, args.weight, args.img_csv, args.result_csv, args.analysis_csv, args.gradcam, args.header) 
+    extra_test_img(args.model_name, args.weight, args.img_csv, args.result_csv, args.analysis_csv1, args.gradcam, args.header) 
   elif choice == '1':
-    make_analysis2(args.result_csv, args.analysis_csv, args.heatmap_csv, args.output_csv)
+    make_analysis2(args.result_csv, args.analysis_csv1, args.heatmap_csv, args.output_csv)
   elif choice == '2':
     extract_imgs(args.heatmap_csv, args.output_csv, args.img_type)
   elif choice == '3':
-    make_graph(args.output_csv, args.output_graph)
+    compare_Img_AttnImg(args.analysis_csv1, args.analysis_csv2, args.header)
 
 
 if __name__=='__main__':
