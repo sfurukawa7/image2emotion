@@ -37,7 +37,7 @@ def main():
 
     #データをロード
     if(args.LOAD == 'load_Img'):
-        test_img_path, train_x, train_y, test_x, test_y = ef.load_Img(data_path=args.DATASET)
+        test_img_path, train_x, train_y, test_x, test_y = ef.load_Img(data_path=args.DATASET, devide_type = "fixed")
 
     elif(args.LOAD == 'load_AttnImg_CASNet'):
         test_img_path, train_x, train_y, test_x, test_y = ef.load_AttnImg_CASNet(data_path=args.DATASET)
