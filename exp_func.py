@@ -113,7 +113,7 @@ def setup_dataset_CASNet(dataset):
 
     return img_path_list, img_list, label_list
 
-def load_Img(data_path, test_split = 0.15):
+def load_Img(data_path, devide_type = "random", test_split = 0.15):
     df_im=pd.read_csv(data_path,header=None)
     dataset=df_im.values
 
@@ -121,14 +121,22 @@ def load_Img(data_path, test_split = 0.15):
         img_path, data_x, data_y = setup_dataset(dataset)#train_img_pathは使わない
         return img_path, data_x, data_y
     else:
-        train, test = train_test_split(dataset, test_size=test_split)
+        if devide_type == "random":
+            train, test = train_test_split(dataset, test_size=test_split)
 
+        elif devide_type == "fixed":
+            train_split = 1.0-test_split
+            train_range = int(dataset.shape[0]*train_split-1)
+
+            train = dataset[:train_range, :]
+            test = dataset[train_range+1:, :]
+            
         train_img_path, train_x, train_y = setup_dataset(train)#train_img_pathは使わない
         test_img_path, test_x, test_y = setup_dataset(test)
 
         return test_img_path, train_x, train_y, test_x, test_y
 
-def load_AttnImg_CASNet(data_path, test_split = 0.15):
+def load_AttnImg_CASNet(data_path, devide_type = "random", test_split = 0.15):
     df_im=pd.read_csv(data_path,header=None)
     dataset=df_im.values
 
@@ -136,8 +144,16 @@ def load_AttnImg_CASNet(data_path, test_split = 0.15):
         img_path, data_x, data_y = setup_dataset_CASNet(dataset)#train_img_pathは使わない
         return img_path, data_x, data_y
     else:
-        train, test = train_test_split(dataset, test_size=test_split)
+        if devide_type == "random":
+            train, test = train_test_split(dataset, test_size=test_split)
 
+        elif devide_type == "fixed":
+            train_split = 1.0-test_split
+            train_range = int(dataset.shape[0]*train_split-1)
+
+            train = dataset[:train_range, :]
+            test = dataset[train_range+1:, :]
+        
         train_img_path, train_x, train_y = setup_dataset_CASNet(train)#train_img_pathは使わない
         test_img_path, test_x, test_y = setup_dataset_CASNet(test)
 
